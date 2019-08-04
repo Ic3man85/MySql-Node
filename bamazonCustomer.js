@@ -1,6 +1,16 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
 const color = require("colors");
+const Table = require('cli-table2');
+
+// instantiate
+var table = new Table({
+    head: ['Id', 'Name', 'Department', 'Price', 'Stock Quantity'],
+    colWidths: [5, 20, 20, 10, 10]
+});
+
+// table is an Array, so you can `push`, `unshift`, `splice` and friends
+
 
 
 let con = mysql.createConnection({
@@ -15,48 +25,61 @@ con.connect(function(err) {
     if (err) throw err;
     console.log("CONNECTED!!!" + con.threadId);
     con.query("SELECT * FROM products", function(err, result) {
-        if (err) throw err;
+        if (err) {
+            console.log(err);
+        }
         for (let i = 0; i < result.length; i++) {
-            console.log("Item:".red + result[i].item_id + " " + result[i].product_name.blue + " Price:".green + result[i].price);
+            table.push(
+                [result[i].item_id, result[i].product_name, result[i].department_name, result[i].price, result[i].stock_quantity]
+            );
+
+            console.log(table.toString());
+            // console.log("Item:".red + result[i].item_id + " " + result[i].product_name.blue + " Price:".green + result[i].price);
         }
         promptUser(result);
-        con.end();
     })
 });
 
 function promptUser(data) {
     inquirer.prompt([{
-            type: "list",
+            type: "input",
             name: "item_id",
             message: "Which item number would you like?",
-            choices: function() {
-                let choicesId = [];
-                for (let i = 0; i < data.length; i++) {
-                    choicesId.push(data[i].item_id);
-                }
-                return choicesId;
-            }
-
         },
         {
             type: "input",
             name: "numberItems",
             message: "How many units would you like?"
-
         }
     ]).then(function(answer) {
-        checkNumUnits(answer.item_id, answer.numberItems);
+        con.query("SELECT product_name,department_name,price,stock_quantity FROM products WHERE ?", { item_id: answer.item_id },
+            function(err, res) {
+                if (err) {
+                    console.log(err);
+                }
+                if (res[0].stock_quantity >= answer.numberItems) {
+                    let updatedQuantity = res[0].stock_quantity - answer.numberItems;
+                    con.query("UPDATE products SET ? WHERE ?", [{
+                        stock_quantity: updatedQuantity
+                    }, {
+                        item_id: answer.item_id
+                    }], function(err) {
+                        if (err) {
+                            console.log(err);
+                        }
+                    });
+                    let cost = res[0].price * answer.numberItems;
+                    console.log("Order Filled, Your Cost is: " + cost);
+                    con.end();
 
-    }).catch(function(err) {
-        if (err) {
-            console.log(err);
-        }
+                    // promptUser();
+                } else {
+                    console.log("Not enough inventory to fill your order!");
+                    con.end();
+                    // promptUser();
+                }
+            }
+        );
+
     });
-}
-
-function checkNumUnits(selectedId, numUnits) {
-    con.query("SELECT stock_quantity FROM products WHERE ? '{selectedId} = products.item_id'", function(err, res) {
-        console.log(res);
-        console.log(numUnits);
-    })
 }
