@@ -41,6 +41,7 @@ con.connect(function(err) {
                     addInventory();
                     break;
                 case 4:
+                    addNewProduct();
                     break;
                 default:
                     break;
@@ -60,6 +61,7 @@ function forSale() {
             );
         }
         console.log(table.toString());
+        con.end();
     });
 };
 
@@ -74,8 +76,8 @@ function lowInventory() {
         }
         console.log(table.toString());
 
+        con.end();
     });
-    con.end();
 }
 
 function addInventory() {
@@ -91,7 +93,6 @@ function addInventory() {
 
         }
     ]).then(function(answer) {
-        console.log(answer);
         con.query("SELECT * FROM products WHERE ?", { item_id: answer.ID }, function(err, result) {
             if (err) throw err;
             table.push(
@@ -101,9 +102,46 @@ function addInventory() {
             con.query("UPDATE products SET stock_quantity = stock_quantity +" + answer.quantity + " WHERE item_id = " + answer.ID,
                 function(err, res) {
                     if (err) throw err;
-                    console.log("Inventory Succesfully added!!, Your New Quantity is: " + res.data);
+                    let newTotal = parseInt(result[0].stock_quantity) + parseInt(answer.quantity);
+                    console.log("Inventory Succesfully added!!, Your New Quantity is: " + newTotal);
                     con.end();
                 });
         });
+    });
+}
+
+function addNewProduct() {
+    inquirer.prompt([{
+            name: "name",
+            type: "input",
+            message: "What is the name of the item?"
+        },
+        {
+            name: "department",
+            type: "input",
+            message: "What department does your item belong too?"
+        },
+        {
+            name: "price",
+            type: "input",
+            message: "What is the price of the item?"
+        },
+        {
+            name: "quantity",
+            type: "input",
+            message: "How many of you item?"
+        }
+    ]).then(function(answer) {
+        console.log(answer);
+        const { name, department, price, quantity } = answer;
+        const parsedQuantity = parseInt(quantity);
+        const parsedPrice = parseFloat(price);
+        const query = "INSERT INTO products (product_name, department_name, price, stock_quantity) VALUES (?, ?, ?, ?)";
+        con.query(query, [name, department, parsedPrice, parsedQuantity], (err, res) => {
+            if (err) throw err;
+            console.log("Item Added To Inventory!!");
+            con.end();
+        });
+
     });
 }
