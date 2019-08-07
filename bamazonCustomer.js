@@ -33,9 +33,8 @@ con.connect(function(err) {
                 [result[i].item_id, result[i].product_name, result[i].department_name, result[i].price, result[i].stock_quantity]
             );
 
-            console.log(table.toString());
-            // console.log("Item:".red + result[i].item_id + " " + result[i].product_name.blue + " Price:".green + result[i].price);
         }
+        console.log(table.toString());
         promptUser(result);
     })
 });
